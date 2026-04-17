@@ -733,7 +733,10 @@ class SafeTensorsStateSource(StateSource):
         all_expected_keys = set(key_to_filename_map.keys())
 
         if not key_to_filename_map:
-            buffered_tensors = dict(generator)
+            buffered_tensors = {
+                k: (v.contiguous() if isinstance(v, torch.Tensor) else v)
+                for k, v in generator
+            }
             if buffered_tensors:
                 save_file(buffered_tensors, output_path / "model.safetensors")
             return
@@ -767,7 +770,14 @@ class SafeTensorsStateSource(StateSource):
                 keys_for_file = files_to_save[filename]
                 if keys_for_file.issubset(buffered_tensors.keys()):
                     # This shard is complete, save it.
-                    tensors_to_save = {key: buffered_tensors[key] for key in keys_for_file}
+                    tensors_to_save = {
+                        key: (
+                            buffered_tensors[key].contiguous()
+                            if isinstance(buffered_tensors[key], torch.Tensor)
+                            else buffered_tensors[key]
+                        )
+                        for key in keys_for_file
+                    }
 
                     output_file_path = output_path / filename
                     save_file(tensors_to_save, output_file_path)
@@ -799,7 +809,15 @@ class SafeTensorsStateSource(StateSource):
             if not strict:
                 for filename in list(files_to_save.keys()):
                     keys_for_file = files_to_save[filename]
-                    tensors_to_save = {key: buffered_tensors[key] for key in keys_for_file if key in buffered_tensors}
+                    tensors_to_save = {
+                        key: (
+                            buffered_tensors[key].contiguous()
+                            if isinstance(buffered_tensors[key], torch.Tensor)
+                            else buffered_tensors[key]
+                        )
+                        for key in keys_for_file
+                        if key in buffered_tensors
+                    }
                     output_file_path = output_path / filename
                     save_file(tensors_to_save, output_file_path)
 
